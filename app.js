@@ -27,7 +27,6 @@ async function sendImageToApi(apiUrl, fileBuffer, fileName, extraFields = {}) {
     maxBodyLength: Infinity,
   });
 
-  console.log(`${apiUrl}` , response);
   return response.data;
 }
 
@@ -58,7 +57,8 @@ app.post(
         image.originalname,
         { organs }
       );
-      const plantType = plantRes?.plant || "Unknown";
+      
+      const plantType = plantRes.lenght != 0 ? plantRes.toString() : "Unknown";
 
       // ✅ Step 2: Run other three APIs in parallel
       const [waterRes, fertRes, diseaseRes] = await Promise.all([
