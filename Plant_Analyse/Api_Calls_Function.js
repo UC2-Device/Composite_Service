@@ -1,6 +1,12 @@
 import FormData from "form-data";
 import axios from "axios";
 
+const PLANT_API = "https://plant-detection-api.onrender.com/identify";
+const WATER_API = "https://water-stress-detection-api.onrender.com/detect_water_stress";
+const FERT_API = "https://nutrients-detection-api.onrender.com/detect_nutrient_deficiency";
+const DISEASE_API = "https://disease-detection-api-4fm3.onrender.com/detect_disease";
+
+
 async function sendImageToApi(apiUrl, fileBuffer, fileName, extraFields = {}) {
   const formData = new FormData();
   formData.append("images", fileBuffer, fileName);
@@ -23,9 +29,7 @@ async function sendImageToApi(apiUrl, fileBuffer, fileName, extraFields = {}) {
     if (options.onlyPlant) {
       // ✅ Only plant detection
       const plantRes = await sendImageToApi(PLANT_API, image.buffer, image.originalname, { organs });
-      const plantType =
-        plantRes?.results?.[0]?.species?.commonNames?.[0] ||
-        plantRes?.results?.[0]?.species?.scientificName ||
+      const plantType = plantRes.toString();
         "Unknown";
 
       return { plant: plantType };
