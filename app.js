@@ -13,15 +13,11 @@ const upload = multer();
 app.use(express.json());
 
 // 🔑 JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey123";
-
-// 🌍 MongoDB Connection
-// const uri = process.env.MONGO_URI; // keep URI in .env for security
-// const client = new MongoClient(uri, { serverApi: { version: ServerApiVersion.v1 }, tlsInsecure: true });
+const JWT_SECRET = process.env.JWT_SECRET ;
 
 const connectDb = async ()=>{
     try {
-        await mongoose.connect("mongodb+srv://chiragbansal112004:chiragbansal112004@uc2d.2equ09j.mongodb.net/UC2D_portals",{
+        await mongoose.connect(process.env.MONGO_URI,{
         useNewUrlParser:true,
         useUnifiedTopology:true
     })
