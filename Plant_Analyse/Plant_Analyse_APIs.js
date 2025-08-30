@@ -2,8 +2,9 @@ import express from "express";
 import authMiddleware from "../Authentication/Authentication_Middleware.js";
 import processAnalysis from "./Api_Calls_Function.js";
 import multer from "multer";
-import {User} from "../Database/Database.js";
+import {User} from "../Database/Mongo_Database.js";
 import sessions from "../Authorization/Session_Data.js";
+import sessionAuth from "./Api_Calls_Function.js";
 
 const router = express.Router();
 const upload = multer();
@@ -12,7 +13,7 @@ const upload = multer();
 // ✅ 1. Detect Plant Type
 router.post(
   "/plant",
-  authMiddleware,
+  authMiddleware, sessionAuth ,
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "organs", maxCount: 1 },
@@ -42,7 +43,7 @@ router.post(
 // ✅ 2. Detect Health Issues (Water, Fertilizer, Disease)
 router.post(
   "/health",
-  authMiddleware,
+  authMiddleware,sessionAuth,
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "plant", maxCount: 1 }, // pass detected plant type here
@@ -65,6 +66,9 @@ router.post(
         disease: healthResult.disease,
         timestamp: new Date().toISOString(),
       });
+
+      logImage(plantType, image.buffer);
+
     } catch (error) {
       console.error("Error in /detect-health:", error);
       res.status(500).json({ error: "Failed to detect plant health issues" });
@@ -112,7 +116,7 @@ router.post("/startsession", authMiddleware, upload.single("image"), async (req,
     const plantRes = await sendImageToApi(PLANT_API, image.buffer, image.originalname, { organs });
     const plantType = plantRes?.results?.[0]?.species?.commonNames?.[0] || "Unknown";
 
-    // ✅ Create session
+    // ✅ Create session*
     const sessionId = Date.now().toString();
 
     sessions[sessionId] = {

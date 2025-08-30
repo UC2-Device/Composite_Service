@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import express from "express";
 import dotenv from "dotenv";
-import {User} from "../Database/Database.js";
+import {User} from "../Database/Mongo_Database.js";
 
 dotenv.config();
 const router = express.Router();

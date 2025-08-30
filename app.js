@@ -1,6 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-import connectDb from "./Database/Database.js";
+import connectDb from "./Database/Mongo_Database.js";
 import login_signup_router from "./Authentication/Signup_Login.js";
 import analyse_router from "./Plant_Analyse/Plant_Analyse_APIs.js";
 
