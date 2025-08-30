@@ -1,7 +1,9 @@
 import express from "express";
-import authMiddleware from "../Authentication/Authentication_Function.js";
+import authMiddleware from "../Authentication/Authentication_Middleware.js";
 import processAnalysis from "./Api_Calls_Function.js";
 import multer from "multer";
+import {User} from "../Database/Database.js";
+import sessions from "../Authorization/Session_Data.js";
 
 const router = express.Router();
 const upload = multer();
@@ -69,5 +71,74 @@ router.post(
     }
   }
 );
+
+router.post("/startsession", authMiddleware, upload.single("image"), async (req, res) => {
+  try {
+    const image = req.file;
+    const organs = req.body?.organs;
+    if (!image || !organs) {
+      return res.status(400).json({ error: "Image and organs are required" });
+    }
+
+    const userId = req.user.device_id;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // ✅ Reset sessions if it's a new day
+    if (user.last_session_date !== today) {
+      user.used_sessions = 0; 
+      user.last_session_date = today;
+    }
+
+    // ✅ Check if sessions left
+    if (user.used_sessions >= user.total_sessions) {
+      return res.status(403).json({ error: "No sessions left for today. Upgrade or wait until tomorrow." });
+    }
+
+    // ✅ Subscription check
+    const now = new Date();
+    const daysLeft = Math.ceil((user.subscription_end - now) / (1000 * 60 * 60 * 24));
+    let subscriptionWarning = null;
+    if (daysLeft <= 5) {
+      subscriptionWarning = `Your subscription will expire in ${daysLeft} day(s). Please renew soon.`;
+    }
+    if (daysLeft <= 0) {
+      return res.status(403).json({ error: "Subscription expired. Please renew to continue." });
+    }
+
+    // ✅ Detect plant
+    const plantRes = await sendImageToApi(PLANT_API, image.buffer, image.originalname, { organs });
+    const plantType = plantRes?.results?.[0]?.species?.commonNames?.[0] || "Unknown";
+
+    // ✅ Create session
+    const sessionId = Date.now().toString();
+
+    sessions[sessionId] = {
+      plant_type: plantType,
+      remaining_calls: 15,
+      created_at: today,
+      userId: user._id,
+    };
+
+    // ✅ Mark session used
+    user.used_sessions += 1;
+    await user.save();
+
+    res.json({
+      session_id: sessionId,
+      plant_type: plantType,
+      remaining_calls: 15,
+      sessions_left_today: user.total_sessions - user.used_sessions,
+      subscription_days_left: daysLeft,
+      subscription_warning: subscriptionWarning
+    });
+
+  } catch (err) {
+    console.error("Error in /start-session:", err);
+    res.status(500).json({ error: "Failed to start session" });
+  }
+});
 
 export default router;
