@@ -10,9 +10,9 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 router.post("/signup", async (req, res) => {
   try {
-    const { username, email, phone, device_id, password } = req.body;
+    const { username, email, phone, device_id, password , total_sessions , subscription_end} = req.body;
 
-    if (!username || !email || !phone || !device_id || !password) {
+    if (!username || !email || !phone || !device_id || !password , !subscription_end , !total_sessions) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
@@ -28,7 +28,8 @@ router.post("/signup", async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
 
     // Create new user document
-    const newUser = new User({ username, email, phone, device_id, password: hashed });
+    const last_session_date = new Date().toISOString().split("T")[0];
+    const newUser = new User({ username, email, phone, device_id, password: hashed , used_sessions : 0 , last_session_date : last_session_date , subscription_end , total_sessions});
     await newUser.save();
 
     res.json({ message: "Signup successful" });
