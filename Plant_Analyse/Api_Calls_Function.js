@@ -59,3 +59,4 @@ async function sendImageToApi(apiUrl, fileBuffer, fileName, extraFields = {}) {
 }
 
 export default processAnalysis;
+export {sendImageToApi};

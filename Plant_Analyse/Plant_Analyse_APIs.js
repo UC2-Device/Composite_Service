@@ -2,9 +2,11 @@ import express from "express";
 import authMiddleware from "../Authentication/Authentication_Middleware.js";
 import processAnalysis from "./Api_Calls_Function.js";
 import multer from "multer";
-import {User} from "../Database/Mongo_Database.js";
+import { User } from "../Database/Mongo_Database.js";
 import sessions from "../Authorization/Session_Data.js";
-import sessionAuth from "./Api_Calls_Function.js";
+import sessionAuth from "../Authorization/Authorization_MIddleware.js";
+// import sendImageToApi from "../Plant_Analyse/Api_Calls_Function.js"
+import logImage from "../Logging/Logging_Function.js";
 
 const router = express.Router();
 const upload = multer();
@@ -13,7 +15,7 @@ const upload = multer();
 // ✅ 1. Detect Plant Type
 router.post(
   "/plant",
-  authMiddleware, sessionAuth ,
+  authMiddleware,sessionAuth,
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "organs", maxCount: 1 },
@@ -30,7 +32,7 @@ router.post(
       const plantResult = await processAnalysis(image, organs, { onlyPlant: true });
 
       res.json({
-        plant: plantResult.toString(),
+        plant: plantResult,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -67,7 +69,7 @@ router.post(
         timestamp: new Date().toISOString(),
       });
 
-      logImage(plantType, image.buffer);
+      logImage(plantType, image);
 
     } catch (error) {
       console.error("Error in /detect-health:", error);
@@ -77,7 +79,7 @@ router.post(
 );
 
 
-router.post("/",authMiddleware ,  sessionAuth , upload.single("image"), async (req, res) => {
+router.post("/", authMiddleware, sessionAuth, upload.single("image"), async (req, res) => {
   try {
     const { sessionId, organs } = req.body;
     const image = req.file;
@@ -94,26 +96,20 @@ router.post("/",authMiddleware ,  sessionAuth , upload.single("image"), async (r
 
     if (session.plan === "normal") {
       // ✅ Health only
-      const [waterRes, fertRes, diseaseRes] = await Promise.all([
-        sendImageToApi(WATER_API, image.buffer, image.originalname, { plant: plantType }),
-        sendImageToApi(FERT_API, image.buffer, image.originalname, { plant: plantType }),
-        sendImageToApi(DISEASE_API, image.buffer, image.originalname, { plant: plantType }),
-      ]);
-      result = { plant: plantType, water_need: waterRes, fertilizer_need: fertRes, disease: diseaseRes };
+      const healthResult = await processAnalysis(image, null, { onlyHealth: true, plant: plantType });
+
+      result = { plant: plantType, water_need: healthResult.water_need, fertilizer_need: healthResult.fertilizer_need, disease: healthResult.disease };
 
     } else if (session.plan === "premium") {
       // ✅ Full suite
-      const [plantRes, waterRes, fertRes, diseaseRes] = await Promise.all([
-        sendImageToApi(PLANT_API, image.buffer, image.originalname, { organs }),
-        sendImageToApi(WATER_API, image.buffer, image.originalname, { plant: plantType }),
-        sendImageToApi(FERT_API, image.buffer, image.originalname, { plant: plantType }),
-        sendImageToApi(DISEASE_API, image.buffer, image.originalname, { plant: plantType }),
-      ]);
+      const healthResult = await processAnalysis(image, null, { onlyHealth: true, plant: plantType });
+      const plantRes = await processAnalysis(image, organs, { onlyPlant: true });
+
       result = {
         plant: plantRes.toString(),
-        water_need: waterRes,
-        fertilizer_need: fertRes,
-        disease: diseaseRes,
+        water_need: healthResult.water_need,
+        fertilizer_need: healthResult.fertilizer_need,
+        disease: healthResult.disease,
       };
     }
 
@@ -138,7 +134,7 @@ router.post("/startsession", authMiddleware, upload.single("image"), async (req,
     }
 
     const userId = req.user.device_id;
-    const user = await User.findById(userId);
+    const user = await User.findOne({ device_id: userId });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const today = new Date().toISOString().split("T")[0];
@@ -166,16 +162,16 @@ router.post("/startsession", authMiddleware, upload.single("image"), async (req,
     }
 
     // ✅ Detect plant (only once at session start)
-    const plantRes = await sendImageToApi(PLANT_API, image.buffer, image.originalname, { organs });
+    const plantRes = await processAnalysis(image, organs, { onlyPlant: true });
     const plantType = plantRes.toString();
 
     // ✅ Create session with user plan embedded
     const sessionId = Date.now().toString();
     sessions[sessionId] = {
       plant_type: plantType,
-      remaining_calls: 15,     // always per session
+      remaining_calls: 2,     // always per session
       created_at: today,
-      userId: user._id,
+      userId: user.device_id,
       plan: user.plan           // 👈 store user plan here
     };
 

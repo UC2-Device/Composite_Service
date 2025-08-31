@@ -2,7 +2,11 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import express from "express";
 import dotenv from "dotenv";
+import crypto from "crypto";
 import { User } from "../Database/Mongo_Database.js";
+import pendingVerifications from "./Mail_Verification_OTP_Data.js";
+import sendMail from "../Mailing/Node_Mailer_Function.js";
+import { pendingPasswordResets } from "./Mail_Verification_OTP_Data.js";
 
 dotenv.config();
 const router = express.Router();

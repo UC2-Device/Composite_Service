@@ -1,6 +1,7 @@
-import sessions from "./Session_Data";
+import sessions from "./Session_Data.js";
 
-export function sessionAuth(req, res, next) {
+ function sessionAuth(req, res, next) {
+
   const sessionId = req.headers["session_id"]; // expect session id in headers
 
   if (!sessionId) {
@@ -19,9 +20,11 @@ export function sessionAuth(req, res, next) {
 
   // ✅ Attach session to request so routes can use it
   sessions[sessionId].remaining_calls = session.remaining_calls -1 ;
-  
+
   req.session = session;
   req.sessionId = sessionId;
 
   next();
 }
+
+export default sessionAuth;
