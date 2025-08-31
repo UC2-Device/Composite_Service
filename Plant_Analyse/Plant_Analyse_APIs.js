@@ -30,7 +30,7 @@ router.post(
       const plantResult = await processAnalysis(image, organs, { onlyPlant: true });
 
       res.json({
-        plant: plantResult.plant,
+        plant: plantResult.toString(),
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -76,6 +76,59 @@ router.post(
   }
 );
 
+
+router.post("/",authMiddleware ,  sessionAuth , upload.single("image"), async (req, res) => {
+  try {
+    const { sessionId, organs } = req.body;
+    const image = req.file;
+
+    if (!image || !sessionId || !organs) {
+      return res.status(400).json({ error: "Image, sessionId, and organs are required" });
+    }
+
+    // 🔎 Fetch session from DB
+    const session = sessions[sessionId];
+
+    let result = {};
+    const plantType = session.plant_type;
+
+    if (session.plan === "normal") {
+      // ✅ Health only
+      const [waterRes, fertRes, diseaseRes] = await Promise.all([
+        sendImageToApi(WATER_API, image.buffer, image.originalname, { plant: plantType }),
+        sendImageToApi(FERT_API, image.buffer, image.originalname, { plant: plantType }),
+        sendImageToApi(DISEASE_API, image.buffer, image.originalname, { plant: plantType }),
+      ]);
+      result = { plant: plantType, water_need: waterRes, fertilizer_need: fertRes, disease: diseaseRes };
+
+    } else if (session.plan === "premium") {
+      // ✅ Full suite
+      const [plantRes, waterRes, fertRes, diseaseRes] = await Promise.all([
+        sendImageToApi(PLANT_API, image.buffer, image.originalname, { organs }),
+        sendImageToApi(WATER_API, image.buffer, image.originalname, { plant: plantType }),
+        sendImageToApi(FERT_API, image.buffer, image.originalname, { plant: plantType }),
+        sendImageToApi(DISEASE_API, image.buffer, image.originalname, { plant: plantType }),
+      ]);
+      result = {
+        plant: plantRes.toString(),
+        water_need: waterRes,
+        fertilizer_need: fertRes,
+        disease: diseaseRes,
+      };
+    }
+
+    res.json({
+      ...result,
+      remaining_calls: session.remaining_calls - 1,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Error in /analyze:", error);
+    res.status(500).json({ error: "Failed to process request" });
+  }
+});
+
+
 router.post("/startsession", authMiddleware, upload.single("image"), async (req, res) => {
   try {
     const image = req.file;
@@ -92,7 +145,7 @@ router.post("/startsession", authMiddleware, upload.single("image"), async (req,
 
     // ✅ Reset sessions if it's a new day
     if (user.last_session_date !== today) {
-      user.used_sessions = 0; 
+      user.used_sessions = 0;
       user.last_session_date = today;
     }
 
@@ -112,18 +165,18 @@ router.post("/startsession", authMiddleware, upload.single("image"), async (req,
       return res.status(403).json({ error: "Subscription expired. Please renew to continue." });
     }
 
-    // ✅ Detect plant
+    // ✅ Detect plant (only once at session start)
     const plantRes = await sendImageToApi(PLANT_API, image.buffer, image.originalname, { organs });
-    const plantType = plantRes?.results?.[0]?.species?.commonNames?.[0] || "Unknown";
+    const plantType = plantRes.toString();
 
-    // ✅ Create session*
+    // ✅ Create session with user plan embedded
     const sessionId = Date.now().toString();
-
     sessions[sessionId] = {
       plant_type: plantType,
-      remaining_calls: 15,
+      remaining_calls: 15,     // always per session
       created_at: today,
       userId: user._id,
+      plan: user.plan           // 👈 store user plan here
     };
 
     // ✅ Mark session used
@@ -133,16 +186,18 @@ router.post("/startsession", authMiddleware, upload.single("image"), async (req,
     res.json({
       session_id: sessionId,
       plant_type: plantType,
-      remaining_calls: 15,
+      plan: user.plan, // 👈 tell frontend what plan is active
+      remaining_calls: 360,
       sessions_left_today: user.total_sessions - user.used_sessions,
       subscription_days_left: daysLeft,
       subscription_warning: subscriptionWarning
     });
 
   } catch (err) {
-    console.error("Error in /start-session:", err);
+    console.error("Error in /startsession:", err);
     res.status(500).json({ error: "Failed to start session" });
   }
 });
+
 
 export default router;
