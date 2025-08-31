@@ -1,5 +1,5 @@
-import { DailyStats } from "../Database/Mongo_Database";
-import { User } from "../Database/Mongo_Database";
+import { DailyStats } from "../Database/Mongo_Database.js";
+import { User } from "../Database/Mongo_Database.js";
 
 function getDayIndex() {
   const today = new Date().getDate(); // 1–31

@@ -38,10 +38,6 @@ router.post("/login", async (req, res) => {
   }
 });
 
-import crypto from "crypto";
-import bcrypt from "bcrypt";
-import sendMail from "../mailer.js";
-import { User } from "../Database/Mongo_Database.js";
 
 router.post("/signup", async (req, res) => {
   try {

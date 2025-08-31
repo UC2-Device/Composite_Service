@@ -1,7 +1,6 @@
 import express from "express";
-import { getDailyStatsByEmail, updateDailyStats as saveDailyStats} from "./Analyse_Data_Function";
-import { getDailyStatsByEmail } from "./Analyse_Data_Function"; 
-
+import { getDailyStatsByEmail, updateDailyStats as saveDailyStats} from "./Analyse_Data_Function.js";
+import authMiddleware from "../Authentication/Authentication_Middleware.js";
 const router = express.Router();
 
 router.post("/save", authMiddleware, async (req, res) => {
@@ -21,7 +20,7 @@ router.post("/save", authMiddleware, async (req, res) => {
   }
 });
 
-router.get("/", async (req, res) => {
+router.get("/", authMiddleware , async (req, res) => {
   try {
     const email = req.params.email;
 
