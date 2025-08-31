@@ -15,7 +15,7 @@ const upload = multer();
 // ✅ 1. Detect Plant Type
 router.post(
   "/plant",
-  authMiddleware,sessionAuth,
+  authMiddleware, sessionAuth,
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "organs", maxCount: 1 },
@@ -61,6 +61,7 @@ router.post(
       // Call processAnalysis but only for health detection
       const healthResult = await processAnalysis(image, null, { onlyHealth: true, plant: plantType });
 
+
       res.json({
         plant: plantType,
         water_need: healthResult.water_need,
@@ -69,7 +70,7 @@ router.post(
         timestamp: new Date().toISOString(),
       });
 
-      logImage(plantType, image);
+      logImage(plantType, image.buffer);
 
     } catch (error) {
       console.error("Error in /detect-health:", error);

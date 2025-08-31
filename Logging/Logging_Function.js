@@ -1,32 +1,19 @@
-import { Readable } from "stream";
+import { InputFile } from "node-appwrite";
 import { storage, databases, ID } from "../Database/Appwrite_Database.js";
 
 const BUCKET_ID = "68b351d80023a97e05e6";
 const DATABASE_ID = "68b351aa0020e8eea52e";
 const COLLECTION_ID = "68b351f7000f07c364d8";
 
-function bufferToStream(buffer) {
-  const stream = new Readable();
-  stream.push(buffer);
-  stream.push(null);
-  return stream;
-}
-
-async function logImage(plantType, fileBuffer) {
+async function logImage(plantType, fileBuffer, originalName = "upload.jpg") {
   try {
     const fileId = ID.unique();
 
-    // Wrap buffer into Appwrite's expected format
-    console.log(fileBuffer)
-    const filePayload = {
-      type: "file",
-      name: `${fileId}.jpg`,
-      size: fileBuffer.length,
-      stream: bufferToStream(fileBuffer),
-    };
+    // Wrap file properly
+    const file = InputFile.fromBuffer(fileBuffer, originalName);
 
     // Upload file
-    await storage.createFile(BUCKET_ID, fileId, filePayload);
+    await storage.createFile(BUCKET_ID, fileId, file);
 
     // Store metadata
     await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
