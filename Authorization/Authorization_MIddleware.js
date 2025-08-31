@@ -13,6 +13,7 @@ export function sessionAuth(req, res, next) {
   }
 
   if (session.remaining_calls <= 0) {
+    delete session[sessionId];
     return res.status(403).json({ error: "Session call limit reached" });
   }
 
