@@ -26,7 +26,22 @@ const userSchema = new mongoose.Schema({
   subscription_end: { type: Date, required: true } // when plan expires
 });
 
+
+const DailyStatsSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  email: { type: String, required: true }, // ✅ Added for identification
+
+  // Store as fixed-length arrays for 30 days
+  total_scans: { type: [Number], default: () => Array(30).fill(0) },
+  area_utilised: { type: [Number], default: () => Array(30).fill(0) },
+  health_need: { type: [Number], default: () => Array(30).fill(0) },
+
+  updated_at: { type: Date, default: Date.now },
+});
+
+const DailyStats = mongoose.model("DailyStats", DailyStatsSchema);
 const User = mongoose.model("User", userSchema);
 
 export default connectDb;
 export { User };
+export {DailyStats};

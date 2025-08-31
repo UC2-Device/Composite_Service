@@ -1,11 +1,12 @@
+import dotenv from "dotenv";
 const nodemailer = require('nodemailer');
-
+dotenv.config();
 
 const transporter = nodemailer.createTransport({
-  service: 'senders address', 
+  service: 'uc2.devices@gmail.com', 
   auth: {
-    user: 'senders address', 
-    pass: 'App password', 
+    user: 'uc2.devices@gmail.com', 
+    pass: process.env.EMAIL_APP_PASSWORD, 
   },
 });
 
@@ -13,7 +14,7 @@ const transporter = nodemailer.createTransport({
 export default function sendMail({to , subject , text})
 {
     const mailOptions = {
-    from: 'senders address', // Sender's email address
+    from: 'uc2.devices@gmail.com', // Sender's email address
     to: to, // Recipient's email address
     subject: subject, // Email subject
     text: text, // Email body (plain text)
