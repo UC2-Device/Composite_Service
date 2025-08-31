@@ -10,9 +10,9 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 router.post("/signup", async (req, res) => {
   try {
-    const { username, email, phone, device_id, password , total_sessions , subscription_end} = req.body;
+    const { username, email, phone, device_id, password , total_sessions , subscription_end , plan} = req.body;
 
-    if (!username || !email || !phone || !device_id || !password , !subscription_end , !total_sessions) {
+    if (!username || !email || !phone || !device_id || !password , !subscription_end , !total_sessions, !plan) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
@@ -29,7 +29,7 @@ router.post("/signup", async (req, res) => {
 
     // Create new user document
     const last_session_date = new Date().toISOString().split("T")[0];
-    const newUser = new User({ username, email, phone, device_id, password: hashed , used_sessions : 0 , last_session_date : last_session_date , subscription_end , total_sessions});
+    const newUser = new User({ username, email, phone, device_id, password: hashed , used_sessions : 0 , last_session_date : last_session_date , subscription_end , total_sessions , plan});
     await newUser.save();
 
     res.json({ message: "Signup successful" });
@@ -38,7 +38,6 @@ router.post("/signup", async (req, res) => {
     res.status(500).json({ error: "Signup failed" });
   }
 });
-
 
 router.post("/login", async (req, res) => {
   try {
