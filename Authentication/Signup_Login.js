@@ -8,37 +8,6 @@ dotenv.config();
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 
-router.post("/signup", async (req, res) => {
-  try {
-    const { username, email, phone, device_id, password , total_sessions , subscription_end , plan} = req.body;
-
-    if (!username || !email || !phone || !device_id || !password , !subscription_end , !total_sessions, !plan) {
-      return res.status(400).json({ error: "All fields are required" });
-    }
-
-    // 🔍 Check for existing user
-    const exists = await User.findOne({
-      $or: [{ username }, { email }, { device_id }],
-    });
-
-    if (exists) {
-      return res.status(400).json({ error: "Username, email, or device_id already in use" });
-    }
-
-    const hashed = await bcrypt.hash(password, 10);
-
-    // Create new user document
-    const last_session_date = new Date().toISOString().split("T")[0];
-    const newUser = new User({ username, email, phone, device_id, password: hashed , used_sessions : 0 , last_session_date : last_session_date , subscription_end , total_sessions , plan});
-    await newUser.save();
-
-    res.json({ message: "Signup successful" });
-  } catch (err) {
-    console.error("Signup error:", err);
-    res.status(500).json({ error: "Signup failed" });
-  }
-});
-
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -69,5 +38,154 @@ router.post("/login", async (req, res) => {
   }
 });
 
+import crypto from "crypto";
+import bcrypt from "bcrypt";
+import sendMail from "../mailer.js";
+import { User } from "../Database/Mongo_Database.js";
+
+router.post("/signup", async (req, res) => {
+  try {
+    const { username, email, phone, device_id, password, total_sessions, subscription_end, plan } = req.body;
+
+    if (!username || !email || !phone || !device_id || !password || !subscription_end || !total_sessions || !plan) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Check if already registered
+    const exists = await User.findOne({ $or: [{ email }, { phone }, { device_id }] });
+    if (exists) return res.status(400).json({ error: "Email, phone, or device_id already registered" });
+
+    // Generate OTP (6-digit)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const token = crypto.randomBytes(16).toString("hex");
+
+    // Store temporarily (expires in 10 mins)
+    pendingVerifications[token] = {
+      data: { username, email, phone, device_id, password, total_sessions, subscription_end, plan },
+      otp,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 mins
+    };
+
+    // Send OTP via email
+    sendMail({
+      to: email,
+      subject: "Verify your account",
+      text: `Your OTP is: ${otp}. It will expire in 10 minutes.`,
+    });
+
+    res.json({ message: "OTP sent to email. Please verify.", token });
+  } catch (err) {
+    console.error("Signup error:", err);
+    res.status(500).json({ error: "Signup failed" });
+  }
+});
+
+router.post("/verify_otp", async (req, res) => {
+  try {
+    const { token, otp } = req.body;
+
+    const entry = pendingVerifications[token];
+    if (!entry) return res.status(400).json({ error: "Invalid or expired request" });
+
+    if (entry.expiresAt < Date.now()) {
+      delete pendingVerifications[token];
+      return res.status(400).json({ error: "OTP expired" });
+    }
+
+    if (entry.otp !== otp) {
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+
+    // Save user to DB
+    const data = entry.data;
+    const hashed = await bcrypt.hash(data.password, 10);
+    const last_session_date = new Date().toISOString().split("T")[0];
+
+    const newUser = new User({
+      username: data.username,
+      email: data.email,
+      phone: data.phone,
+      device_id: data.device_id,
+      password: hashed,
+      used_sessions: 0,
+      last_session_date,
+      subscription_end: data.subscription_end,
+      total_sessions: data.total_sessions,
+      plan: data.plan,
+    });
+
+    await newUser.save();
+
+    // Clean up
+    delete pendingVerifications[token];
+
+    res.json({ message: "User verified and registered successfully." });
+  } catch (err) {
+    console.error("OTP verification error:", err);
+    res.status(500).json({ error: "Verification failed" });
+  }
+});
+
+router.post("/forgot_password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const token = crypto.randomBytes(16).toString("hex");
+
+    pendingPasswordResets[token] = {
+      email,
+      otp,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+    };
+
+    sendMail({
+      to: email,
+      subject: "Password Reset OTP",
+      text: `Your OTP for password reset is: ${otp}. It will expire in 10 minutes.`,
+    });
+
+    res.json({ message: "OTP sent to email.", token });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
+
+// Verify OTP and reset password
+router.post("/reset_password", async (req, res) => {
+  try {
+    const { token, otp, newPassword } = req.body;
+    if (!token || !otp || !newPassword) {
+      return res.status(400).json({ error: "Token, OTP, and newPassword are required" });
+    }
+
+    const entry = pendingPasswordResets[token];
+    if (!entry) return res.status(400).json({ error: "Invalid or expired reset request" });
+
+    if (entry.expiresAt < Date.now()) {
+      delete pendingPasswordResets[token];
+      return res.status(400).json({ error: "OTP expired" });
+    }
+
+    if (entry.otp !== otp) return res.status(400).json({ error: "Invalid OTP" });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await User.updateOne({ email: entry.email }, { $set: { password: hashed } });
+
+    delete pendingPasswordResets[token];
+
+    res.json({ message: "Password reset successful." });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ error: "Password reset failed" });
+  }
+});
 
 export default router ;
