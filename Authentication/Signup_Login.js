@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import express from "express";
 import dotenv from "dotenv";
-import {User} from "../Database/Mongo_Database.js";
+import { User } from "../Database/Mongo_Database.js";
 
 dotenv.config();
 const router = express.Router();
@@ -45,9 +45,9 @@ import { User } from "../Database/Mongo_Database.js";
 
 router.post("/signup", async (req, res) => {
   try {
-    const { username, email, phone, device_id, password, total_sessions, subscription_end, plan } = req.body;
+    const { username, email, phone, device_id, password } = req.body;
 
-    if (!username || !email || !phone || !device_id || !password || !subscription_end || !total_sessions || !plan) {
+    if (!username || !email || !phone || !device_id || !password) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
@@ -60,8 +60,9 @@ router.post("/signup", async (req, res) => {
     const token = crypto.randomBytes(16).toString("hex");
 
     // Store temporarily (expires in 10 mins)
+
     pendingVerifications[token] = {
-      data: { username, email, phone, device_id, password, total_sessions, subscription_end, plan },
+      data: { username, email, phone, device_id, password },
       otp,
       expiresAt: Date.now() + 10 * 60 * 1000, // 10 mins
     };
@@ -101,6 +102,10 @@ router.post("/verify_otp", async (req, res) => {
     const hashed = await bcrypt.hash(data.password, 10);
     const last_session_date = new Date().toISOString().split("T")[0];
 
+    const today = new Date();
+    const futureDate = new Date(today); // clone today
+    futureDate.setDate(today.getDate() + 10);
+
     const newUser = new User({
       username: data.username,
       email: data.email,
@@ -109,9 +114,9 @@ router.post("/verify_otp", async (req, res) => {
       password: hashed,
       used_sessions: 0,
       last_session_date,
-      subscription_end: data.subscription_end,
-      total_sessions: data.total_sessions,
-      plan: data.plan,
+      subscription_end: futureDate,
+      total_sessions: 1,
+      plan: "normal",
     });
 
     await newUser.save();
@@ -188,4 +193,4 @@ router.post("/reset_password", async (req, res) => {
   }
 });
 
-export default router ;
+export default router;
