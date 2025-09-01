@@ -7,6 +7,7 @@ import { User } from "../Database/Mongo_Database.js";
 import pendingVerifications from "./Mail_Verification_OTP_Data.js";
 import sendMail from "../Mailing/Node_Mailer_Function.js";
 import { pendingPasswordResets } from "./Mail_Verification_OTP_Data.js";
+import authMiddleware from "./Authentication_Middleware.js";
 
 dotenv.config();
 const router = express.Router();
@@ -14,8 +15,9 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 router.post("/login", async (req, res) => {
   try {
+     
     const { username, password } = req.body;
-
+    
     if (!username || !password) {
       return res.status(400).json({ error: "Username and password are required" });
     }
@@ -190,6 +192,27 @@ router.post("/reset_password", async (req, res) => {
     console.error("Reset password error:", err);
     res.status(500).json({ error: "Password reset failed" });
   }
+});
+
+router.get("/authenticate_user", authMiddleware, async (req, res)  => {
+  const { id, username, device_id } = req.user;
+
+  const user = await User.findOne({ device_id: device_id });
+
+  res.json({
+    user: {
+      device_id : user.device_id,
+      email : user.email,
+      last_session_date : user.last_session_date,
+      phone : user.phone,
+      status : user.status,
+      subscription_end : user.subscription_end,
+      total_sessions : user.total_sessions,
+      used_sessions : user.used_sessions,
+      username : user.username,
+      plan : user.plan
+    }
+  });
 });
 
 export default router;

@@ -1,6 +1,7 @@
 import sessions from "./Session_Data.js";
+import { User } from "../Database/Mongo_Database.js";
 
- function sessionAuth(req, res, next) {
+async function sessionAuth(req, res, next) {
 
   const sessionId = req.headers["session_id"]; // expect session id in headers
 
@@ -10,6 +11,10 @@ import sessions from "./Session_Data.js";
 
   const session = sessions[sessionId];
   if (!session) {
+    const user = await User.findOne({ device_id: session.device_id });
+    user.status = "not active";
+    await user.save();
+
     return res.status(403).json({ error: "Invalid or expired session ID" });
   }
 

@@ -6,15 +6,15 @@ function getDayIndex() {
   return (today - 1) % 30; // index 0–29
 }
 
-export async function updateDailyStats(device_id, { scans = 0, area = 0, health = 0 }) {
+export async function updateDailyStats(device_id, scans = 0, area = 0, health = 0 ) {
   const dayIndex = getDayIndex();
 
-  const user = await User.findById(device_id).select("email");
+  const user = await User.findOne({device_id}).select("email");
   if (!user) throw new Error("User not found");
-
-  let stats = await DailyStats.findOne({ device_id });
+  
+  let stats = await DailyStats.findOne({userId :  device_id });
   if (!stats) {
-    stats = new DailyStats({ device_id, email: user.email });
+    stats = new DailyStats({ userId : device_id, email: user.email });
   }
 
   stats.total_scans[dayIndex] += scans;
@@ -25,8 +25,8 @@ export async function updateDailyStats(device_id, { scans = 0, area = 0, health 
   await stats.save();
 }
 
-export async function getDailyStatsByEmail(email) {
-  const stats = await DailyStats.findOne({ email });
+export async function getDailyStatsById(userId) {
+  const stats = await DailyStats.findOne({ userId  });
 
   if (!stats) {
     throw new Error("No stats found for this email");

@@ -1,5 +1,5 @@
 import express from "express";
-import { getDailyStatsByEmail, updateDailyStats as saveDailyStats} from "./Analyse_Data_Function.js";
+import { getDailyStatsById, updateDailyStats} from "./Analyse_Data_Function.js";
 import authMiddleware from "../Authentication/Authentication_Middleware.js";
 const router = express.Router();
 
@@ -11,7 +11,7 @@ router.post("/save", authMiddleware, async (req, res) => {
       return res.status(400).json({ error: "total_scans, area_utilised, health_need are required" });
     }
 
-    const stats = await saveDailyStats(req.user.device_id, { total_scans, area_utilised, health_need });
+    const stats = await updateDailyStats(req.user.device_id,  total_scans, area_utilised, health_need );
 
     res.json({ message: "Stats saved successfully", stats });
   } catch (err) {
@@ -22,13 +22,8 @@ router.post("/save", authMiddleware, async (req, res) => {
 
 router.get("/", authMiddleware , async (req, res) => {
   try {
-    const email = req.params.email;
 
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
-
-    const stats = await getDailyStatsByEmail(email);
+    const stats = await getDailyStatsById(req.user.device_id);
     res.json({ message: "Stats fetched successfully", stats });
 
   } catch (err) {

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { type } from "os";
 
 async function connectDb() {
   try {
@@ -15,17 +16,17 @@ const userSchema = new mongoose.Schema({
   phone: { type: String },
   device_id: { type: String, unique: true, required: true },
   password: { type: String, required: true },
-
+  status : {type : String , required : true , default : 'not active'},
   total_sessions: { type: Number, default: 1 },   // per-day sessions allowed
   used_sessions: { type: Number, default: 0 },    // per-day sessions used
   last_session_date: { type: String, default: null },
-
+  plan : {type : String , default : "normal"},
   subscription_end: { type: Date, required: true } // when plan expires
 });
 
 
 const DailyStatsSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  userId: { type: String, ref: "User", required: true },
   email: { type: String, required: true }, // ✅ Added for identification
 
   // Store as fixed-length arrays for 30 days

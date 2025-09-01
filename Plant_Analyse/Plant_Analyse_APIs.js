@@ -5,7 +5,6 @@ import multer from "multer";
 import { User } from "../Database/Mongo_Database.js";
 import sessions from "../Authorization/Session_Data.js";
 import sessionAuth from "../Authorization/Authorization_MIddleware.js";
-// import sendImageToApi from "../Plant_Analyse/Api_Calls_Function.js"
 import logImage from "../Logging/Logging_Function.js";
 
 const router = express.Router();
@@ -178,6 +177,7 @@ router.post("/startsession", authMiddleware, upload.single("image"), async (req,
 
     // ✅ Mark session used
     user.used_sessions += 1;
+    user.status = "active";
     await user.save();
 
     res.json({
