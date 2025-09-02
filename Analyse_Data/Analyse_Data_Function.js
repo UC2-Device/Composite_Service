@@ -27,6 +27,7 @@ export async function updateDailyStats(device_id, scans = 0, area = 0, health = 
 
 export async function getDailyStatsById(userId) {
   const stats = await DailyStats.findOne({ userId  });
+  const user = await User.findOne({device_id : userId});
 
   if (!stats) {
     throw new Error("No stats found for this email");
@@ -35,7 +36,7 @@ export async function getDailyStatsById(userId) {
   return {
     email: stats.email,
     total_scans: stats.total_scans,
-    area_utilised: stats.area_utilised,
+    area_utilised: user.plan == "normal" ? "premium required" : stats.area_utilised,
     health_need: stats.health_need,
     updated_at: stats.updated_at,
   };
