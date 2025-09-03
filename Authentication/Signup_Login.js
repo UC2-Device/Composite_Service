@@ -197,7 +197,7 @@ router.post("/reset_password", async (req, res) => {
 router.get("/authenticate_user", authMiddleware, async (req, res)  => {
   const { id, username, device_id } = req.user;
 
-  const user = await User.findOne({ device_id: device_id });
+  const user = await User.findOne({device_id });
 
   res.json({
     user: {
